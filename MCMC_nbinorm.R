@@ -1,0 +1,386 @@
+# slphyx@SHIFT-ENTER
+
+library(deSolve)
+library(BayesianTools)
+
+## data
+TH.data <- data.frame(
+  year = c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+  cases = c(18985,18456,19318,14251,14466,9612,5548,4589,3635,3084)
+)
+
+model_equations <- function(t, x, parameters) {
+  # Use 'with' to handle parameter values
+  with(as.list(parameters), {
+    IL <- x[1]
+    I0 <- x[2]
+    SL <- x[3]
+    S0 <- x[4]
+    TL <- x[5]
+    T0 <- x[6]
+    h <- x[7]
+    hL <- x[8]
+    hh <- x[9]
+    hhL <- x[10]
+
+    dIL= (1-alpha)*(omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) + (1-alpha)*f*SL + (omega*lambda*(IL+I0+TL+T0)+delta)*I0 - gammaL*IL - r*IL;
+    dI0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(I0) +  gammaL*IL - r*I0;
+    dSL= -(omega*lambda*(IL+I0+TL+T0)+delta)*(SL) - f*SL +(1-beta)*sigma*TL -  gammaL*SL + r*IL+ r*TL;
+    dS0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(S0) +beta*sigma*TL+ sigma *T0 +  gammaL*SL + r*I0+ r*T0;
+    dTL= alpha*(omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) + alpha*f*SL - sigma*TL -r*TL -gammaL*TL+ (omega*lambda*(IL+I0+TL+T0)+delta)*T0;
+    dT0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(T0) - sigma*T0+gammaL*TL - r*T0;
+
+    dh=rho*((omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) +f*SL);
+    dhL= rho*((omega*lambda*(IL+I0+TL+T0))*(S0+SL) +f*SL);
+    dhh= ((omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) +f*SL);
+    dhhL= ((omega*lambda*(IL+I0+TL+T0))*(S0+SL) +f*SL);
+
+
+
+
+    # Return the derivatives as a list
+    list(c(dIL, dI0, dSL, dS0, dTL, dT0, dh, dhL, dhh, dhhL))
+  })
+}
+
+## function for optimization
+# sum square error
+SSQ <- function(obs, model) {
+  sum((obs-model)^2)
+}
+
+control_options <- list(
+  atol = 1e-12,  # Absolute tolerance, similar to TolX
+  rtol = 1e-12,  # Relative tolerance, similar to TolFun
+  maxsteps = 10000,  # Maximum number of steps, similar to MaxIter
+  hmax = 0.1,  # Maximum step size (optional, similar to MaxStep in MATLAB)
+  hini = 1e-6  # Initial step size (optional)
+)
+
+
+OBJ.fn <- function(pars){
+  print(pars)
+
+  times <- seq(1, 10)
+
+  lambda <- pars[1]
+  r <- 1/60
+  gammaL <- 1/223
+  f <- 1/72
+  alpha <- 0.17
+  beta <- 0.43
+  sigma <- 1/15
+  omega <- 0.26
+  rho <- 0.5
+  delta <- pars[2]
+  parameters <- c(lambda = lambda,r = r,gammaL = gammaL,f = f,
+                  alpha = alpha,beta=beta,sigma = sigma,omega = omega,rho =rho,delta=delta)
+
+
+  IL0 <- 500
+  I00 <- 500
+
+  TL0 <- 500
+  T00 <- 200
+  SL0 <- ((1-beta)*sigma*TL0+r*IL0+r*TL0)/(omega*lambda*(IL0+I00+TL0+T00))
+  S00 <- (beta*sigma*TL0+sigma*T00+gammaL*SL0+gammaL*I00+r*T00)/(omega*lambda*(IL0+I00+TL0+T00))
+  h0 <- 19090
+  hL0 <- 1000
+  hh0 <- 3084
+  hhL0 <-1000
+
+
+
+  initial_state <- c(IL = IL0, I0 = I00, SL = SL0, S0 = S00, TL = TL0, T0 = T00,
+                     h = h0, hL = hL0, hh = hh0, hhL = hhL0)
+
+  result <- ode(y = initial_state, times = times, func = model_equations, parms = parameters,
+                method = rkMethod("ode45"), atol = 1e-10, rtol = 1e-10, maxsteps = 10e5)
+
+  inc <- c(result[,"h"][1],diff(result[,"h"]))
+
+  # plot(TH.data$year, TH.data$cases, ylim = c(0,3e4))
+  # lines(TH.data$year,inc)
+  #
+  SSQ(obs = TH.data$cases, model = inc)
+
+}
+########################
+Plot.par <- function(pars){
+  print(pars)
+
+  times <- seq(1, 10)
+
+  lambda <- pars[1]
+  r <- 1/60
+  gammaL <- 1/223
+  f <- 1/72
+  alpha <- 0.17
+  beta <- 0.43
+  sigma <- 1/15
+  omega <- 0.26
+  rho <- 0.5
+  delta <- pars[2]
+  parameters <- c(lambda = lambda,r = r,gammaL = gammaL,f = f,
+                  alpha = alpha,beta=beta,sigma = sigma,omega = omega,rho =rho,delta=delta)
+
+
+  IL0 <- 500
+  I00 <- 500
+
+  TL0 <- 500
+  T00 <- 200
+  SL0 <- ((1-beta)*sigma*TL0+r*IL0+r*TL0)/(omega*lambda*(IL0+I00+TL0+T00))
+  S00 <- (beta*sigma*TL0+sigma*T00+gammaL*SL0+gammaL*I00+r*T00)/(omega*lambda*(IL0+I00+TL0+T00))
+  h0 <- 19090
+  hL0 <- 1000
+  hh0 <- 3084
+  hhL0 <-1000
+
+
+
+  initial_state <- c(IL = IL0, I0 = I00, SL = SL0, S0 = S00, TL = TL0, T0 = T00,
+                     h = h0, hL = hL0, hh = hh0, hhL = hhL0)
+
+  result <- ode(y = initial_state, times = times, func = model_equations, parms = parameters,
+                method = rkMethod("ode45"), atol = 1e-10, rtol = 1e-10, maxsteps = 10e5)
+
+  inc <- c(result[,"h"][1],diff(result[,"h"]))
+
+  ssq <- SSQ(obs = TH.data$cases, model = inc)
+  plot(TH.data$year, TH.data$cases, ylim = c(0,3e4))
+  lines(TH.data$year,inc)
+  title(paste("SSQ:", ssq))
+
+}
+
+times <- seq(1, 10)
+
+lambda <- 2.95e-6
+r <- 1/60
+gammaL <- 1/223
+f <- 1/72
+alpha <- 0.17
+beta <- 0.43
+sigma <- 1/15
+omega <- 0.26
+rho <- 0.5
+delta <- 2.6e-1
+parameters <- c(lambda = lambda,r = r,gammaL = gammaL,f = f,
+                alpha = alpha,beta=beta,sigma = sigma,omega = omega,rho =rho,delta=delta)
+
+
+IL0 <- 500
+I00 <- 500
+
+TL0 <- 500
+T00 <- 200
+SL0 <- ((1-beta)*sigma*TL0+r*IL0+r*TL0)/(omega*lambda*(IL0+I00+TL0+T00))
+S00 <- (beta*sigma*TL0+sigma*T00+gammaL*SL0+gammaL*I00+r*T00)/(omega*lambda*(IL0+I00+TL0+T00))
+h0 <- 19090
+hL0 <- 1000
+hh0 <- 3084
+hhL0 <-1000
+
+initial_state <- c(IL = IL0, I0 = I00, SL = SL0, S0 = S00, TL = TL0, T0 = T00,
+                   h = h0, hL = hL0, hh = hh0, hhL = hhL0)
+
+
+nbinom_log_likelihood <- function(pars, obs = TH.data,
+                                           plot= F) {
+  times <- seq(1, 10)
+  lambda <- pars[1]
+  r <- 1/60
+  gammaL <- 1/223
+  f <- 1/72
+  alpha <- 0.17
+  beta <- 0.43
+  sigma <- 1/15
+  omega <- 0.26
+  rho <- 0.5
+  delta <- pars[2]
+  parameters <- c(lambda = lambda,r = r,gammaL = gammaL,f = f,
+                  alpha = alpha,beta=beta,sigma = sigma,omega = omega,rho =rho,delta=delta)
+  theta <- pars[3]
+
+  IL0 <- 500
+  I00 <- 500
+
+  TL0 <- 500
+  T00 <- 200
+  SL0 <- ((1-beta)*sigma*TL0+r*IL0+r*TL0)/(omega*lambda*(IL0+I00+TL0+T00))
+  S00 <- (beta*sigma*TL0+sigma*T00+gammaL*SL0+gammaL*I00+r*T00)/(omega*lambda*(IL0+I00+TL0+T00))
+  h0 <- 19090
+  hL0 <- 1000
+  hh0 <- 3084
+  hhL0 <-1000
+
+
+
+  initial_state <- c(IL = IL0, I0 = I00, SL = SL0, S0 = S00, TL = TL0, T0 = T00,
+                     h = h0, hL = hL0, hh = hh0, hhL = hhL0)
+
+
+  # run the model
+  result <- ode(y = initial_state, times = times, func = model_equations, parms = parameters,
+                method = rkMethod("ode45"), atol = 1e-10, rtol = 1e-10, maxsteps = 10e5)
+
+  model.inc <- c(result[,"h"][1],diff(result[,"h"]))
+
+  ll <- sum(dnbinom(x=TH.data$cases,
+                    size = theta,
+                  mu=  model.inc,
+                  log = T))
+
+  if(plot == T){
+    plot(TH.data$year, TH.data$cases, ylim = c(0,3e4))
+    lines(TH.data$year,model.inc)
+  }
+
+  if(ll == Inf || is.na(ll) || is.nan(ll) ){
+    ll = -Inf
+  }
+
+  return(ll)
+}
+
+nbinom_log_likelihood(c( 2.95e-6,2.6e-1,1),plot=T)
+nbinom_log_likelihood(c( 9e-6,2.6e-1,1),plot=T)
+
+
+prior <- createUniformPrior(lower = c(1e-7,0,0),
+                            upper = c(9e-6,0.5,100))
+
+# start from 2016
+bayesianSetup <- createBayesianSetup(nbinom_log_likelihood,
+                                     prior = prior,
+                                     names =
+                                       c( "lambda",
+                                          "delta",
+                                          "theta"
+                                       )
+)
+settings <- list(iterations =4500, nrChains = 3, message = TRUE,burnin = 0)
+
+mcmcout <- runMCMC(bayesianSetup = bayesianSetup, settings = settings)
+
+summary(mcmcout)
+tracePlot(mcmcout,start=300)
+DIC(mcmcout)
+
+sample <- getSample(mcmcout, coda = T, start = 300, parametersOnly = T)
+summary(sample)
+
+ysample <- NULL
+chain.ID <- 1
+pb <- txtProgressBar(min = 0, max = length(sample[[chain.ID]][,1]), style = 3)
+
+for(i in 1:length(sample[[chain.ID]][,1])){
+  times <- seq(1, 10)
+  lambda <- sample[[chain.ID]][i,1]
+  r <- 1/60
+  gammaL <- 1/223
+  f <- 1/72
+  alpha <- 0.17
+  beta <- 0.43
+  sigma <- 1/15
+  omega <- 0.26
+  rho <- 0.5
+  delta <- sample[[chain.ID]][i,2]
+  parameters <- c(lambda = lambda,r = r,gammaL = gammaL,f = f,
+                  alpha = alpha,beta=beta,sigma = sigma,omega = omega,
+                  rho =rho,delta=delta)
+  
+  
+  IL0 <- 500
+  I00 <- 500
+  
+  TL0 <- 500
+  T00 <- 200
+  SL0 <- ((1-beta)*sigma*TL0+r*IL0+r*TL0)/(omega*lambda*(IL0+I00+TL0+T00))
+  S00 <- (beta*sigma*TL0+sigma*T00+gammaL*SL0+gammaL*I00+r*T00)/(omega*lambda*(IL0+I00+TL0+T00))
+  h0 <- 19090
+  hL0 <- 1000
+  hh0 <- 3084
+  hhL0 <-1000
+  
+  
+  
+  initial_state <- c(IL = IL0, I0 = I00, SL = SL0, S0 = S00, TL = TL0, T0 = T00,
+                     h = h0, hL = hL0, hh = hh0, hhL = hhL0)
+  
+  
+  # run the model
+  result <- ode(y = initial_state, times = times, func = model_equations, parms = parameters,
+                method = rkMethod("ode45"), atol = 1e-10, rtol = 1e-10, maxsteps = 10e5)
+  
+  model.inc <- c(result[,"h"][1],diff(result[,"h"]))
+  
+  if(i==1){
+    ysample <- list(model.inc)
+  }else{
+    
+    ysample <-append(ysample,list(model.inc))
+  }
+  setTxtProgressBar(pb, i)
+}
+
+
+length(ysample)
+TH.data
+
+nrow(sample[[chain.ID]])
+sample[[chain.ID]]
+
+params.rand <- matrix(data = NA,ncol = 10,
+                      nrow = nrow(sample[[chain.ID]]))
+
+for(i in 1:nrow(sample[[chain.ID]])){
+  x <- ysample[[i]]
+  
+  params.rand[i,] <- rnbinom(n = 10,
+                             size = sample[[chain.ID]][i,3],
+                             mu = x)
+  
+}
+
+CI95 <- data.frame(getCredibleIntervals(params.rand,c(0.025, 0.5,0.975)))
+CI95
+
+up <- unlist( CI95[3,])
+low <- unlist( CI95[1,])
+# plot(unlist( CI95[2,]),type = "l",xlab= "month",ylab ="Incidence",ylim = c(0, 35000))
+# polygon(c(1:10,10:1),c(low,rev(up)),col = "grey75", border = FALSE)
+# 
+# lines(unlist( CI95[2,]), lwd = 2,col=4)
+# #add red lines on borders of polygon
+# lines(up, col="red",lty=2)
+# lines(low, col="red",lty=2)
+# points(TH.data$cases,type="b")
+# title("Incidence")
+# 
+
+
+library(ggplot2)
+
+years <- seq(2012, 2021)
+
+df <- data.frame(
+  year = years,
+  incidence = unlist(CI95[2,]),
+  lower = unlist(CI95[1,]),
+  upper = unlist(CI95[3,])
+)
+
+ggplot(df, aes(x = year)) +
+  geom_line(aes(y = incidence, color = "Estimated median"), size = 1.2) +  # Main line for incidence with legend
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey75", alpha = 0.5) +  # Shaded polygon for CI
+  # geom_line(aes(y = upper), color = "red", linetype = "dashed") +  # Upper CI border
+  # geom_line(aes(y = lower), color = "red", linetype = "dashed") +  # Lower CI border
+  geom_point(data = TH.data, aes(x = years, y = cases, shape = "Incidence of P. Vivax cases"), color = "black", size = 2) +  # Points for cases with legend
+  geom_line(data = TH.data, aes(x = years, y = cases), color = "black", linetype = "solid") +  # Line connecting points
+  labs(x = "Year", y = "Incidence", title = NULL) +
+  scale_color_manual(values = c("Estimated median" = "blue")) +  # Customize the color for the legend
+  scale_shape_manual(values = c("Incidence of P. Vivax cases" = 16)) +  # Customize the shape for the legend
+  theme_minimal() +
+  guides(color = guide_legend(title = NULL), shape = guide_legend(title = NULL))  # Add legend for color and shape
