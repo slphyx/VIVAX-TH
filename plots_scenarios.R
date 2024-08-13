@@ -73,17 +73,29 @@ model_equations_SS <- function(time, x, parameters, par.name=NULL, par.val=NULL,
     hh <- x[9]
     hhL <- x[10]
     
-    dIL= (1-alpha)*(omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) + (1-alpha)*f*SL + (omega*lambda*(IL+I0+TL+T0)+delta)*I0 - gammaL*IL - r*IL;
-    dI0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(I0) +  gammaL*IL - r*I0;
-    dSL= -(omega*lambda*(IL+I0+TL+T0)+delta)*(SL) - f*SL +(1-beta)*sigma*TL -  gammaL*SL + r*IL+ r*TL;
-    dS0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(S0) +beta*sigma*TL+ sigma *T0 +  gammaL*SL + r*I0+ r*T0;
+    # dIL= (1-alpha)*(omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) + (1-alpha)*f*SL + (omega*lambda*(IL+I0+TL+T0)+delta)*I0 - gammaL*IL - r*IL;
+    # dI0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(I0) +  gammaL*IL - r*I0;
+    # dSL= -(omega*lambda*(IL+I0+TL+T0)+delta)*(SL) - f*SL +(1-beta)*sigma*TL -  gammaL*SL + r*IL+ r*TL;
+    # dS0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(S0) +beta*sigma*TL+ sigma *T0 +  gammaL*SL + r*I0+ r*T0;
+    # dTL= alpha*(omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) + alpha*f*SL - sigma*TL -r*TL -gammaL*TL+ (omega*lambda*(IL+I0+TL+T0)+delta)*T0;
+    # dT0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(T0) - sigma*T0+gammaL*TL - r*T0;
+    # 
+    # dh=rho*((omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) +f*SL); 
+    # dhL= rho*((omega*lambda*(IL+I0+TL+T0))*(S0+SL) +f*SL);
+    # dhh= ((omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) +f*SL);
+    # dhhL= ((omega*lambda*(IL+I0+TL+T0))*(S0+SL) +f*SL);
+    # 
+    
+    dIL= (1-alpha)*(omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) + (1-alpha)*f*SL + (omega*lambda*(IL+I0+TL+T0)+delta)*I0 - gammaL*IL - r*IL-tau*IL-tau*IL;
+    dI0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(I0) +  gammaL*IL - r*I0-tau*I0;
     dTL= alpha*(omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) + alpha*f*SL - sigma*TL -r*TL -gammaL*TL+ (omega*lambda*(IL+I0+TL+T0)+delta)*T0;
     dT0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(T0) - sigma*T0+gammaL*TL - r*T0;
-    
-    dh=rho*((omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) +f*SL); 
-    dhL= rho*((omega*lambda*(IL+I0+TL+T0))*(S0+SL) +f*SL);
-    dhh= ((omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) +f*SL);
-    dhhL= ((omega*lambda*(IL+I0+TL+T0))*(S0+SL) +f*SL);
+    dSL= -(omega*lambda*(IL+I0+TL+T0)+delta)*(SL) - f*SL +(1-beta)*sigma*TL -  gammaL*SL + r*IL+ r*TL+tau*IL;
+    dS0= -(omega*lambda*(IL+I0+TL+T0)+delta)*(S0) +beta*sigma*TL+ sigma *T0 +  gammaL*SL + r*I0+ r*T0+tau*I0+tau*IL;
+    dh=rho*((omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) +f*SL); #%rho*((IL+I0+TL+T0)+delta);
+    dhL=rho*((omega*lambda*(IL+I0+TL+T0))*(S0+SL) +f*SL); #% rho*((IL+I0+TL+T0));
+    dhh=((omega*lambda*(IL+I0+TL+T0)+delta)*(S0+SL) +f*SL); #%((IL+I0+TL+T0)+delta);
+    dhhL=((omega*lambda*(IL+I0+TL+T0))*(S0+SL) +f*SL); #%((IL+I0+TL+T0));
     
     
     
@@ -100,7 +112,7 @@ model_equations_SS <- function(time, x, parameters, par.name=NULL, par.val=NULL,
 ## par.val - a vector of the values , i.e., c(0.1,0.4,0.8)
 ## at.time - time for changing the value. in this case will be between 1-24 for year 2012:2035
 ############################
-Run.Scenarios <- function(par.name, par.val, at.time){
+Run.Scenarios <- function(par.name, par.val, at.time, xlim=c(2012,2035), ylim=c(0,3e4)){
   
   par.len <- length(par.val)
   
@@ -116,9 +128,10 @@ Run.Scenarios <- function(par.name, par.val, at.time){
   omega <- 0.26 
   rho <- 0.5
   delta <- 2.845e-1 # from fitting
+  tau <- 0.001
   
   parameters <- c(lambda = lambda, r = r,gammaL = gammaL,f = f,
-                  alpha = alpha,beta=beta,sigma = sigma,omega = omega,rho =rho,delta=delta)
+                  alpha = alpha,beta=beta,sigma = sigma,omega = omega,rho =rho,delta=delta, tau=tau)
   
   baseline.pars <- parameters
   
@@ -147,8 +160,8 @@ Run.Scenarios <- function(par.name, par.val, at.time){
   
  
   plot(years, c(TH.data$cases,rep(NULL,14)),  
-       ylab = "P. vivax cases", xlab = "Year",
-       ylim = c(0,3e4), main = par.name
+       ylab = "Local reported incidence", xlab = "Year",
+       xlim = xlim, ylim = ylim, main = par.name
        )
   
   
@@ -166,13 +179,38 @@ Run.Scenarios <- function(par.name, par.val, at.time){
     
     inc.tmp <- c(result.tmp[,"h"][1],diff(result.tmp[,"h"]))
     lines(years, inc.tmp, col = cl[i])
-    
   }
+  legend("topright", legend = paste(par.name, "=", sprintf("%.2f", par.val)), col = cl, lty = 1)
 }
 
 
+# Run.Scenarios(par.name = "alpha", par.val = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7), at.time = 11)
+# Run.Scenarios(par.name = "alpha", par.val = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7), at.time = 11,
+#               xlim = c(2020,2035), ylim = c(0,5000))
+# 
+# Run.Scenarios(par.name = "delta", par.val = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7), at.time = 11)
+# Run.Scenarios(par.name = "delta", par.val = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7), at.time = 11,
+#               xlim = c(2020,2035), ylim = c(0,5000))
+# 
+# 
+# Run.Scenarios(par.name = "sigma", par.val = c(1/11, 1/7, 1/3, 1), at.time = 11,
+#               xlim = c(2020,2035), ylim = c(0,5000))
 
-Run.Scenarios(par.name = "alpha", par.val = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7), at.time = 11)
 
-Run.Scenarios(par.name = "delta", par.val = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7), at.time = 11)
-
+### Manipulate
+library(manipulate)
+manipulate(
+  Run.Scenarios(
+    par.name = par.name,
+    par.val = c(par.val1, par.val2, par.val3, par.val4),
+    at.time = 11,
+    xlim = c(2012,2035),
+    ylim = c(0, 30000)
+  ),
+  par.name = picker("lambda", "r", "gammaL", "f", "alpha", "beta", 
+                    "sigma", "omega", "rho", "delta", "tau", initial = "rho"),
+  par.val1 = slider(min = 0, max = 1, initial = 0.2, step = 0.0001, ticks = F),
+  par.val2 = slider(min = 0, max = 1, initial = 0.3, step = 0.0001, ticks = F),
+  par.val3 = slider(min = 0, max = 1, initial = 0.4, step = 0.0001, ticks = F),
+  par.val4 = slider(min = 0, max = 1, initial = 0.5, step = 0.0001, ticks = F)
+)
